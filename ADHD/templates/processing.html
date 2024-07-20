@@ -232,12 +232,12 @@
         <div style="justify-content: right; display: flex; text-align: center; align-items: center;">
             <img src="{% static 'images/nodus-icon-removebg-preview.png'%}" alt="NODUS Logo" sizes="50px">
             <!-- Add your logo URL here -->
-            <a class="logo-name" href="#" onclick="location.href='{% url 'landing' %}'"><strong>NODUS</strong></a>
+            <a class="logo-name" href="#" onclick="doNothing(event)"><strong>NODUS</strong></a>
         </div>
         <nav style="padding: 10px;">
-            <a href="#" onclick="location.href='{% url 'landing' %}'">Home</a>
-            <a href="#" onclick="location.href='{% url 'ADHD' %}'">Start Test</a>
-            <a href="#" onclick="location.href='{% url 'FAQ' %}'">FAQ</a>
+            <a href="#" onclick="doNothing(event)">Home</a> <!-- disable the navbar buttons in this page -->
+            <a href="#" onclick="doNothing(event)">Start Test</a>
+            <a href="#" onclick="doNothing(event)">FAQ</a>
         </nav>
     </header>
     <section class="hero">
@@ -245,6 +245,13 @@
         <p id="instructions">The server is analyzing your test results, this process will take a couple of minutes.</p>
 
         <script>
+
+            function doNothing(event) {
+                        event.preventDefault(); // Prevent the default anchor click behavior
+                        event.stopPropagation(); // Stop the event from bubbling up
+                        console.log('Anchor tag clicked, but it does nothing.');
+            }
+
 
             function customAlert(message) {
                 Swal.fire({

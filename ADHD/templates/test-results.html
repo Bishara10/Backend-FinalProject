@@ -305,11 +305,6 @@
             <button onclick="location.href='{% url 'landing' %}'">Back to homepage</button>
         </div>
     </section>
-    <h1> {{eye_analysis }} </h1>
-    <h1> {{ questionnaire}} </h1>
-    <h1> {{ vocal_analysis }} </h1>
-    <h1> {{ reaction_time }} </h1>
-    <h1> {{ questionnaire }} </h1>
 
     <footer class="footer">
         <div style="text-align: center; align-items: center; padding: 20px;">
@@ -372,10 +367,23 @@
         const none = document.getElementById('none');
         const dom = document.getElementById('dominant');
 
-        comb.textContent = "Combined - " + diagnosisDataBackend[0] + "%";
-        imp.textContent = "Impulsive/Hyperactive - " + diagnosisDataBackend[1] + "%";
-        inat.textContent = "Inattentive - " + diagnosisDataBackend[2] + "%";
-        none.textContent = "No ADHD - " + diagnosisDataBackend[3] + "%";
+        if (diagnosisDataBackend[0] < 0.000001) {
+            diagnosisDataBackend[0] = 0;
+        }
+        if (diagnosisDataBackend[1] < 0.000001) {
+            diagnosisDataBackend[1] = 0;
+        }
+        if (diagnosisDataBackend[2] < 0.000001) {
+            diagnosisDataBackend[2] = 0;
+        }
+        if (diagnosisDataBackend[3] < 0.000001) {
+            diagnosisDataBackend[3] = 0;
+        }
+
+        comb.textContent = "Combined - " + diagnosisDataBackend[0] * 100 + "%";
+        imp.textContent = "Impulsive/Hyperactive - " + diagnosisDataBackend[1] * 100 + "%";
+        inat.textContent = "Inattentive - " + diagnosisDataBackend[2] * 100 + "%";
+        none.textContent = "No ADHD - " + diagnosisDataBackend[3] * 100 + "%";
 
         let max = -1;
         let index = -1;
@@ -387,7 +395,7 @@
         }
 
         const types = ["Combined", "Impulsive/Hyperactive", "Inattentive", "No ADHD"];
-        dom.textContent = types[index] + " - " + diagnosisDataBackend[index] + "%";
+        dom.textContent = types[index] + " - " + diagnosisDataBackend[index] * 100 + "%";
 
 
 

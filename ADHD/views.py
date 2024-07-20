@@ -16,6 +16,53 @@ from tensorflow.keras.layers import Input, Dense, Flatten, Conv1D, MaxPooling1D,
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 
+
+### MODEL ###
+
+eye_tracking_input_shape = (3,)  # 3 values per sample: mean, median, std
+reaction_time_input_shape_1 = (3,)
+reaction_time_input_shape_2 = (3,)
+audio_input_shape = (5,)  # 5 features: Fundamental Frequency, Jitter, Shimmer, Harmonics-to-noise ratio, Voice quality index
+questionnaire_input_shape = (20,)  # 20 questions in total
+
+# Eye tracking model
+eye_tracking_input = Input(shape=eye_tracking_input_shape, name='eye_tracking_input')
+x_eye = Dense(64, activation='relu')(eye_tracking_input)
+
+# Reaction time models
+reaction_time_input_1 = Input(shape=reaction_time_input_shape_1, name='reaction_time_input_1')
+reaction_time_input_2 = Input(shape=reaction_time_input_shape_2, name='reaction_time_input_2')
+x_reaction_time_1 = Dense(64, activation='relu')(reaction_time_input_1)
+x_reaction_time_2 = Dense(64, activation='relu')(reaction_time_input_2)
+
+# Audio recording model
+audio_input = Input(shape=audio_input_shape, name='audio_input')
+x_audio = Dense(64, activation='relu')(audio_input)
+x_audio = Dense(32, activation='relu')(x_audio)
+
+# Questionnaire model
+questionnaire_input = Input(shape=questionnaire_input_shape, name='questionnaire_input')
+x_questionnaire = Dense(64, activation='relu')(questionnaire_input)
+x_questionnaire = Dense(32, activation='relu')(x_questionnaire)
+
+# Concatenate all models
+concatenated = Concatenate()([x_eye, x_reaction_time_1, x_reaction_time_2, x_audio, x_questionnaire])
+x = Dense(64, activation='relu')(concatenated)
+x = Dense(32, activation='relu')(x)
+output = Dense(4, activation='softmax', name='output')(x)
+
+# Create model
+model_pred = Model(inputs=[eye_tracking_input, reaction_time_input_1, reaction_time_input_2, audio_input, questionnaire_input], outputs=output)
+
+# Compile model
+model_pred.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
+
+weight_path = Path('ADHD/static/weights/model_weights (1).h5')
+
+# To load the weights later
+model_pred.load_weights(weight_path)
+model_pred.summary()
+
 # Create your views here.
 
 def instructions(request):
@@ -57,11 +104,11 @@ def clean(request):
         save_path_questionnaire = Path('ADHD/temporary_files/' + str( request.META['REMOTE_ADDR'])+ "_questionnaire.txt" )
         save_path_reaction = Path('ADHD/temporary_files/'  + str( request.META['REMOTE_ADDR'])+ "_reaction-time-arrays.txt")
         
-        #os.remove(save_path_eye)
-        #os.remove(save_path_vocal)
-        #os.remove(save_path_questionnaire)
-        #os.remove(save_path_reaction)
-        #os.remove(save_path_initial)
+        os.remove(save_path_eye)
+        os.remove(save_path_vocal)
+        os.remove(save_path_questionnaire)
+        os.remove(save_path_reaction)
+        os.remove(save_path_initial)
         return JsonResponse({'message': 'Files deleted'}, status=200)  
     except: 
         return JsonResponse({'message': 'Error - could not delete files'}, status=201)  
@@ -73,7 +120,7 @@ def results(request):
     # Feed data to DL model and retrieve the probabilities
     ip = request.META['REMOTE_ADDR'] # Extract IP to conduct analysis on files with this IP
     save_path_eye = Path('ADHD/temporary_files/' + str( request.META['REMOTE_ADDR'])+ "_recorded-video.webm" )
-    save_path_vocal = Path('ADHD/temporary_files/' + str( request.META['REMOTE_ADDR'])+ "_audio-recording.wav" )
+    save_path_vocal = Path('ADHD/temporary_files/' + str( request.META['REMOTE_ADDR'])+ "_audio-recording.mp3" )
     save_path_questionnaire = Path('ADHD/temporary_files/' + str( request.META['REMOTE_ADDR'])+ "_questionnaire.txt" )
     save_path_reaction = Path('ADHD/temporary_files/'  + str( request.META['REMOTE_ADDR'])+ "_reaction-time-arrays.txt")
     
@@ -141,10 +188,11 @@ def results(request):
             for i in range(len(reactions_dist)):
                 f.write(str(reactions_dist[i]) + ", ")   
             f.write(questionnaire.split(',')[-1] + "\n")
+    else:
+        questions = tuple(map(int, questionnaire.split(',')))
 
-    # Generate\Fetch tips depending on the dominant ADHD sub-type
 
-    percentages = [25,50,15,10] # Random data
+    percentages = model(eye_analysis, base, dist, voice_analysis, questions)
     tips = get_tips(percentages)
     context = {
         'percentages': percentages,
@@ -375,54 +423,20 @@ def extract_jitter_shimmer_hnr(audio_path):
     
     return jitter, shimmer, hnr
 
-def model():
-    # Define input shapes
-    eye_tracking_input_shape = (3,)  # 3 values per sample: mean, median, std
-    reaction_time_input_shape_1 = (3,)
-    reaction_time_input_shape_2 = (3,)
-    audio_input_shape = (5,)  # 5 features: Fundamental Frequency, Jitter, Shimmer, Harmonics-to-noise ratio, Voice quality index
-    questionnaire_input_shape = (20,)  # 20 questions in total
+# Receive tuples and turn them into lists, then into np.arrays
+def model(eye, react1, react2, vocal, questions):
 
-    # Eye tracking model
-    eye_tracking_input = Input(shape=eye_tracking_input_shape, name='eye_tracking_input')
-    x_eye = Dense(64, activation='relu')(eye_tracking_input)
+    eye_list = list(eye)
+    react1_list = list(react1)
+    react2_list = list(react2)
+    vocal_list = list(vocal)
+    questions_list = list(questions)
 
-    # Reaction time models
-    reaction_time_input_1 = Input(shape=reaction_time_input_shape_1, name='reaction_time_input_1')
-    reaction_time_input_2 = Input(shape=reaction_time_input_shape_2, name='reaction_time_input_2')
-    x_reaction_time_1 = Dense(64, activation='relu')(reaction_time_input_1)
-    x_reaction_time_2 = Dense(64, activation='relu')(reaction_time_input_2)
+    eye_np = np.array([eye_list])
+    react1_np = np.array([react1_list])
+    react2_np = np.array([react2_list])
+    vocal_np = np.array([vocal_list])
+    questions_np = np.array([questions_list])
 
-    # Audio recording model
-    audio_input = Input(shape=audio_input_shape, name='audio_input')
-    x_audio = Dense(64, activation='relu')(audio_input)
-    x_audio = Dense(32, activation='relu')(x_audio)
-
-    # Questionnaire model
-    questionnaire_input = Input(shape=questionnaire_input_shape, name='questionnaire_input')
-    x_questionnaire = Dense(64, activation='relu')(questionnaire_input)
-    x_questionnaire = Dense(32, activation='relu')(x_questionnaire)
-
-    # Concatenate all models
-    concatenated = Concatenate()([x_eye, x_reaction_time_1, x_reaction_time_2, x_audio, x_questionnaire])
-    x = Dense(64, activation='relu')(concatenated)
-    x = Dense(32, activation='relu')(x)
-    output = Dense(4, activation='softmax', name='output')(x)
-
-    # Create model
-    model = Model(inputs=[eye_tracking_input, reaction_time_input_1, reaction_time_input_2, audio_input, questionnaire_input], outputs=output)
-
-    # Compile model
-    model.compile(optimizer=Adam(learning_rate=0.001), loss='categorical_crossentropy', metrics=['accuracy'])
-
-    # Summary of the model
-    model.summary()
-
-    # Training the model
-    model.fit([X_eye_tracking, X_reaction_time_1, X_reaction_time_2, X_audio, X_questionnaire], y, epochs=50, batch_size=32, validation_split=0.2)
-
-    # Save the model weights
-    model.save_weights('model_weights.h5')
-
-    # To load the weights later
-    model.load_weights('model_weights.h5')
+    prediction = model_pred.predict([eye_np, react1_np, react2_np, vocal_np, questions_np])
+    return prediction[0]
